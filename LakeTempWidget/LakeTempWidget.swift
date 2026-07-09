@@ -14,26 +14,18 @@ private let apiURL = URL(string: "https://lake-temp.carloni.uk")!
 private let gaugeRange: ClosedRange<Double> = 0...30
 
 private struct LakeTemperature: Codable {
-    let temperature: String
+    let temperature: Double
     let date: String
 
-    var celsius: Double? {
-        let cleaned = temperature
-            .replacingOccurrences(of: "°C", with: "")
-            .replacingOccurrences(of: "°", with: "")
-            .replacingOccurrences(of: ",", with: ".")
-            .trimmingCharacters(in: .whitespaces)
-        return Double(cleaned)
-    }
+    var celsius: Double { temperature }
 
     var displayTemp: String {
-        if let c = celsius { return String(format: "%.2f°", c) }
-        return temperature
+        String(format: "%.2f°", temperature)
     }
 
     var measuredAt: Date? {
         let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM/yyyy HH:mm:ss"
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.locale = Locale(identifier: "it_IT")
         return formatter.date(from: date)
     }

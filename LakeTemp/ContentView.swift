@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import WidgetKit
 
 struct ContentView: View {
     @State private var reading: LakeTemperature?
@@ -113,6 +114,8 @@ struct ContentView: View {
         errorMessage = nil
         do {
             reading = try await LakeTempService.fetch()
+            // Forza l'aggiornamento dei widget con il nuovo dato.
+            WidgetCenter.shared.reloadAllTimelines()
         } catch {
             errorMessage = "Impossibile caricare la temperatura."
         }

@@ -1,26 +1,46 @@
 //
-//  HistoryChartView.swift
+//  TrendChartView.swift
 //  LakeTemp
 //
-//  Grafico storico della temperatura con selettore Giorno/Settimana/Mese.
+//  Grafico storico con selettore Giorno/Settimana/Mese, condiviso da
+//  temperatura dell'acqua e velocità del vento.
 //
 
 import SwiftUI
 import Charts
 
-struct HistoryChartView: View {
+/// Un punto del grafico, indipendente dalla metrica rappresentata.
+struct TrendPoint: Identifiable {
+    let date: Date
+    let value: Double
+
+    var id: Date { date }
+}
+
+struct TrendChartView: View {
+    let title: String
+
+    /// Etichette dell'asse Y, es. "21,6°" oppure "12".
+    let axisLabel: (Double) -> String
+
+    /// Caricamento dei punti per il range selezionato.
+    let load: (HistoryRange) async throws -> [TrendPoint]
+
+    /// Vero per le grandezze che non possono scendere sotto zero (il vento).
+    var clampsToZero = false
+
     /// Cambia questo valore dall'esterno per forzare un ricaricamento.
     var reloadToken: Int = 0
 
     @State private var range: HistoryRange = .daily
-    @State private var points: [HistoryPoint] = []
+    @State private var points: [TrendPoint] = []
     @State private var isLoading = false
     @State private var failed = false
     @State private var drawProgress: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Andamento")
+            Text(title)
                 .font(.headline)
                 .foregroundStyle(.white)
 
@@ -29,9 +49,8 @@ struct HistoryChartView: View {
             chartContent
                 .frame(height: 200)
         }
-        .padding(16)
-        .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 20))
-        .task(id: "\(range.rawValue)-\(reloadToken)") { await load() }
+        .lakeCard()
+        .task(id: "\(range.rawValue)-\(reloadToken)") { await loadPoints() }
     }
 
     /// Selettore personalizzato (leggibile su sfondo scuro).
@@ -82,44 +101,42 @@ struct HistoryChartView: View {
 
     private var chart: some View {
         Chart(points) { point in
-            if let date = point.parsedDate {
-                AreaMark(
-                    x: .value("Data", date),
-                    yStart: .value("Min", yBounds.lowerBound),
-                    yEnd: .value("Temperatura", point.temperature)
+            AreaMark(
+                x: .value("Data", point.date),
+                yStart: .value("Min", yBounds.lowerBound),
+                yEnd: .value(title, point.value)
+            )
+            .interpolationMethod(.catmullRom)
+            .foregroundStyle(
+                .linearGradient(
+                    colors: [.white.opacity(0.35), .white.opacity(0.02)],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [.white.opacity(0.35), .white.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+            )
 
-                LineMark(
-                    x: .value("Data", date),
-                    y: .value("Temperatura", point.temperature)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(.white)
-                .lineStyle(StrokeStyle(lineWidth: 2.5))
+            LineMark(
+                x: .value("Data", point.date),
+                y: .value(title, point.value)
+            )
+            .interpolationMethod(.catmullRom)
+            .foregroundStyle(.white)
+            .lineStyle(StrokeStyle(lineWidth: 2.5))
 
-                PointMark(
-                    x: .value("Data", date),
-                    y: .value("Temperatura", point.temperature)
-                )
-                .foregroundStyle(.white)
-                .symbolSize(28)
-            }
+            PointMark(
+                x: .value("Data", point.date),
+                y: .value(title, point.value)
+            )
+            .foregroundStyle(.white)
+            .symbolSize(28)
         }
         .chartYScale(domain: yBounds)
         .chartYAxis {
             AxisMarks(position: .leading) { value in
                 AxisGridLine().foregroundStyle(.white.opacity(0.15))
                 AxisValueLabel {
-                    if let t = value.as(Double.self) {
-                        Text("\(t, specifier: "%.1f")°")
+                    if let v = value.as(Double.self) {
+                        Text(axisLabel(v))
                             .foregroundStyle(.white.opacity(0.7))
                     }
                 }
@@ -151,10 +168,11 @@ struct HistoryChartView: View {
 
     /// Estremi Y con un po' di margine sopra e sotto.
     private var yBounds: ClosedRange<Double> {
-        let temps = points.map(\.temperature)
-        guard let min = temps.min(), let max = temps.max() else { return 0...30 }
-        let padding = Swift.max((max - min) * 0.2, 0.5)
-        return (min - padding)...(max + padding)
+        let values = points.map(\.value)
+        guard let low = values.min(), let high = values.max() else { return 0...30 }
+        let padding = Swift.max((high - low) * 0.2, 0.5)
+        let lower = clampsToZero ? Swift.max(0, low - padding) : low - padding
+        return lower...(high + padding)
     }
 
     /// Formato dell'asse X in base al range.
@@ -170,12 +188,12 @@ struct HistoryChartView: View {
         }
     }
 
-    private func load() async {
+    private func loadPoints() async {
         isLoading = true
         failed = false
         drawProgress = 0
         do {
-            points = try await HistoryService.fetch(range)
+            points = try await load(range)
         } catch {
             points = []
             failed = true
@@ -196,7 +214,12 @@ struct HistoryChartView: View {
             startPoint: .top, endPoint: .bottom
         )
         .ignoresSafeArea()
-        HistoryChartView()
-            .padding()
+
+        TrendChartView(
+            title: "Andamento",
+            axisLabel: { String(format: "%.1f°", $0) },
+            load: HistoryService.trend
+        )
+        .padding()
     }
 }

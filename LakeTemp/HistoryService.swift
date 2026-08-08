@@ -75,4 +75,11 @@ enum HistoryService {
             .filter { $0.parsedDate != nil }
             .sorted { ($0.parsedDate ?? .distantPast) < ($1.parsedDate ?? .distantPast) }
     }
+
+    /// Gli stessi dati nel formato atteso dal grafico.
+    static func trend(_ range: HistoryRange) async throws -> [TrendPoint] {
+        try await fetch(range).compactMap { point in
+            point.parsedDate.map { TrendPoint(date: $0, value: point.temperature) }
+        }
+    }
 }

@@ -183,6 +183,7 @@ struct LakeTempWidgetEntryView: View {
 struct LakeTempWidgetBundle: WidgetBundle {
     var body: some Widget {
         LakeTempWidget()
+        LakeWindWidget()
     }
 }
 

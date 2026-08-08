@@ -22,6 +22,16 @@ struct LakeTemperature: Codable {
         String(format: "%.2f°", temperature)
     }
 
+    /// Solo il numero, per le viste che mostrano l'unità di misura a parte.
+    var displayValue: String {
+        String(format: "%.2f", temperature)
+    }
+
+    /// Quanto è avanzato l'anello della card, sulla stessa scala del widget.
+    var gaugeFraction: Double {
+        min(max(temperature / 30, 0), 1)
+    }
+
     /// Data dell'ultima misurazione (formato "yyyy-MM-dd HH:mm:ss").
     var measuredAt: Date? {
         let formatter = DateFormatter()

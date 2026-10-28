@@ -2,8 +2,6 @@
 
 Live water temperature and wind for **Lake Garda**, on the iPhone home screen.
 
-> Screenshots: _add the app and both widgets in `docs/screenshots/`._
-
 ## Why
 
 Swimmers, sailors and windsurfers on Lake Garda check two things before going out: how cold the water is and how strong the wind is. That data exists, but it is buried in websites that are slow to open on a phone. LakeTemp puts it on one screen and in a widget you can read without opening anything.
